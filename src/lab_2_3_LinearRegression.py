@@ -12,7 +12,6 @@ class LinearRegressor:
         coefficients (np.ndarray): Coefficients of the independent variables in the regression model.
         intercept (float): Intercept of the regression model.
     """
-
     def __init__(self):
         """Initializes the LinearRegressor model with default coefficient and intercept values."""
         self.coefficients = None
@@ -32,12 +31,13 @@ class LinearRegressor:
         Returns:
             None: Modifies the model's coefficients and intercept in-place.
         """
+
         if np.ndim(X) > 1:
             X = X.reshape(1, -1)
-
-        # TODO: Train linear regression model with only one coefficient
-        self.coefficients = None
-        self.intercept = None
+        X_mean=np.mean(X)
+        y_mean=np.mean(y)
+        self.coefficients = np.sum((X-X_mean)*(y-y_mean))/np.sum((X-X_mean)**2)
+        self.intercept = y_mean - self.coefficients*X_mean
 
     # This part of the model you will only need for the last part of the notebook
     def fit_multiple(self, X, y):
@@ -54,7 +54,7 @@ class LinearRegressor:
         Returns:
             None: Modifies the model's coefficients and intercept in-place.
         """
-        # TODO: Train linear regression model with multiple coefficients
+        
         self.intercept = None
         self.coefficients = None
 
@@ -75,11 +75,11 @@ class LinearRegressor:
             raise ValueError("Model is not yet fitted")
 
         if np.ndim(X) == 1:
-            # TODO: Predict when X is only one variable
-            predictions = None
+            # Predicción para regresión simple
+            predictions = self.intercept + self.coefficients * X
         else:
-            # TODO: Predict when X is more than one variable
-            predictions = None
+            # Predicción para regresión múltiple
+            predictions = self.intercept + X.dot(self.coefficients)
         return predictions
 
 
@@ -94,35 +94,32 @@ def evaluate_regression(y_true, y_pred):
     Returns:
         dict: A dictionary containing the R^2, RMSE, and MAE values.
     """
-    # R^2 Score
-    # TODO: Calculate R^2
-    r_squared = None
+    # Calcular la suma de los residuos al cuadrado
+    ss_res = np.sum((y_true - y_pred) ** 2)
+    # Calcular la suma total de los cuadrados
+    ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+    r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0
 
-    # Root Mean Squared Error
-    # TODO: Calculate RMSE
-    rmse = None
-
-    # Mean Absolute Error
-    # TODO: Calculate MAE
-    mae = None
+    rmse = np.sqrt(ss_res / len(y_true))
+    mae = np.mean(np.abs(y_true - y_pred))
 
     return {"R2": r_squared, "RMSE": rmse, "MAE": mae}
+
 
 
 # ### Scikit-Learn comparison
 
 
+
 def sklearn_comparison(x, y, linreg):
+
     ### Compare your model with sklearn linear regression model
-    # TODO : Import Linear regression from sklearn
+    #  : Import Linear regression from sklearn
+    # Asegurarse de que x tenga la forma adecuada para sklearn
+    x_reshaped = x.reshape(-1, 1) if x.ndim == 1 else x
 
-    # Assuming your data is stored in x and y
-    # TODO : Reshape x to be a 2D array, as scikit-learn expects 2D inputs for the features
-    x_reshaped = None
-
-    # Create and train the scikit-learn model
-    # TODO : Train the LinearRegression model
-    sklearn_model = None
+   # Crear y entrenar el modelo de scikit-learn
+    sklearn_model = LinearRegressor()
     sklearn_model.fit(x_reshaped, y)
 
     # Now, you can compare coefficients and intercepts between your model and scikit-learn's model
@@ -141,42 +138,32 @@ def anscombe_quartet():
     # Load Anscombe's quartet
     # These four datasets are the same as in slide 19 of chapter 02-03: Linear and logistic regression
     anscombe = sns.load_dataset("anscombe")
-
-    # Anscombe's quartet consists of four datasets
-    # TODO: Construct an array that contains, for each entry, the identifier of each dataset
-    datasets = None
-
+    # Obtener los identificadores de cada uno de los 4 conjuntos de datos
+    datasets = np.sort(anscombe["dataset"].unique())
+    
     models = {}
     results = {"R2": [], "RMSE": [], "MAE": []}
+    
     for dataset in datasets:
+        # Filtrar el dataset actual
+        data = anscombe[anscombe["dataset"] == dataset]
+        X = data["x"].values  # Predictor (1D)
+        y = data["y"].values  # Respuesta
 
-        # Filter the data for the current dataset
-        # TODO
-        data = None
-
-        # Create a linear regression model
-        # TODO
-        model = None
-
-        # Fit the model
-        # TODO
-        X = None  # Predictor, make it 1D for your custom model
-        y = None  # Response
+        # Crear y ajustar el modelo de regresión simple
+        model = LinearRegressor()
         model.fit_simple(X, y)
+        # Realizar predicciones
+        y_pred = model.predict(X)
 
-        # Create predictions for dataset
-        # TODO
-        y_pred = None
-
-        # Store the model for later use
+        # Guardar el modelo para su uso posterior
         models[dataset] = model
 
-        # Print coefficients for each dataset
-        print(
-            f"Dataset {dataset}: Coefficient: {model.coefficients}, Intercept: {model.intercept}"
-        )
+        # Imprimir los coeficientes para cada dataset
+        print(f"Dataset {dataset}: Coefficient: {model.coefficients}, Intercept: {model.intercept}")
 
         evaluation_metrics = evaluate_regression(y, y_pred)
+
 
         # Print evaluation metrics for each dataset
         print(
