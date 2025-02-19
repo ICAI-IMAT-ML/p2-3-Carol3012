@@ -173,4 +173,4 @@ def test_sklearn_comparison():
     ), "Sklearn coefficient is incorrect."
     assert result["sklearn_intercept"] == pytest.approx(
         expected_sklearn_model.intercept_, 1e-6
-    ), "Sklearn intercept is incorrect."
+    ), "Sklearn intercept is incorrect."         
