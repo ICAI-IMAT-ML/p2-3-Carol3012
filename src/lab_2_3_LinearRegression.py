@@ -2,7 +2,7 @@
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-
+from sklearn.linear_model import LinearRegression
 
 class LinearRegressor:
     """
@@ -31,15 +31,21 @@ class LinearRegressor:
         Returns:
             None: Modifies the model's coefficients and intercept in-place.
         """
-
+        # Asegurarse de que X sea un array 1D
         if np.ndim(X) > 1:
             X = X.reshape(1, -1)
-        X_mean=np.mean(X)
-        y_mean=np.mean(y)
-        self.coefficients = np.sum((X-X_mean)*(y-y_mean))/np.sum((X-X_mean)**2)
-        self.intercept = y_mean - self.coefficients*X_mean
 
-    # This part of the model you will only need for the last part of the notebook
+        # Calcular medias
+        X_mean = np.mean(X)
+        y_mean = np.mean(y)
+
+        # Calcular el coeficiente (pendiente)
+        # Formula: sum( (X - X_mean)*(y - y_mean) ) / sum( (X - X_mean)^2 )
+        self.coefficients = np.sum((X - X_mean) * (y - y_mean)) / np.sum((X - X_mean) ** 2)
+
+        # Calcular el intercepto
+        self.intercept = y_mean - self.coefficients * X_mean
+
     def fit_multiple(self, X, y):
         """
         Fit the model using multiple linear regression (more than one independent variable).
@@ -54,9 +60,17 @@ class LinearRegressor:
         Returns:
             None: Modifies the model's coefficients and intercept in-place.
         """
-        
-        self.intercept = None
-        self.coefficients = None
+        # Insertar una columna de 1's para representar el intercepto
+        X_with_ones = np.insert(X, 0, 1, axis=1)
+
+        # Ecuación normal: theta = (X^T X)^(-1) X^T y
+        theta = np.linalg.inv(X_with_ones.T @ X_with_ones) @ (X_with_ones.T @ y)
+
+        # El primer valor de theta es el intercepto
+        self.intercept = theta[0]
+        # El resto son los coeficientes
+        self.coefficients = theta[1:]
+
 
     def predict(self, X):
         """
@@ -74,11 +88,12 @@ class LinearRegressor:
         if self.coefficients is None or self.intercept is None:
             raise ValueError("Model is not yet fitted")
 
+        # Distinción entre regresión simple (X 1D) y múltiple (X 2D)
         if np.ndim(X) == 1:
-            # Predicción para regresión simple
+            # Regresión simple
             predictions = self.intercept + self.coefficients * X
         else:
-            # Predicción para regresión múltiple
+            # Regresión múltiple
             predictions = self.intercept + X.dot(self.coefficients)
         return predictions
 
@@ -94,10 +109,12 @@ def evaluate_regression(y_true, y_pred):
     Returns:
         dict: A dictionary containing the R^2, RMSE, and MAE values.
     """
-    # Calcular la suma de los residuos al cuadrado
+    # Suma de los residuos al cuadrado
     ss_res = np.sum((y_true - y_pred) ** 2)
-    # Calcular la suma total de los cuadrados
+    # Suma total de cuadrados
     ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+
+    # Evitar división por cero si ss_tot es 0
     r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0
 
     rmse = np.sqrt(ss_res / len(y_true))
@@ -109,70 +126,63 @@ def evaluate_regression(y_true, y_pred):
 
 # ### Scikit-Learn comparison
 
-
-
 def sklearn_comparison(x, y, linreg):
+    """
+    Compara un modelo personalizado (linreg) con el modelo de scikit-learn (LinearRegression).
+    """
 
-    ### Compare your model with sklearn linear regression model
-    #  : Import Linear regression from sklearn
-    # Asegurarse de que x tenga la forma adecuada para sklearn
+    # Asegurar que x sea 2D para scikit-learn
     x_reshaped = x.reshape(-1, 1) if x.ndim == 1 else x
 
-   # Crear y entrenar el modelo de scikit-learn
-    sklearn_model = LinearRegressor()
+    # Crear y entrenar el modelo de scikit-learn
+    sklearn_model = LinearRegression()
     sklearn_model.fit(x_reshaped, y)
 
-    # Now, you can compare coefficients and intercepts between your model and scikit-learn's model
-    print("Custom Model Coefficient:", linreg.coefficients)
+    # Imprimir y recopilar resultados
+    print("Custom Model Coefficients:", linreg.coefficients)
     print("Custom Model Intercept:", linreg.intercept)
-    print("Scikit-Learn Coefficient:", sklearn_model.coef_[0])
+    print("Scikit-Learn Coefficients:", sklearn_model.coef_)
     print("Scikit-Learn Intercept:", sklearn_model.intercept_)
+
+    # En caso de regresión simple (1 dimensión), sklearn_model.coef_ es un array de un solo elemento
+    # Si el test espera un escalar, usamos sklearn_model.coef_[0]
+    if sklearn_model.coef_.size == 1:
+        sklearn_coef = sklearn_model.coef_[0]
+    else:
+        sklearn_coef = sklearn_model.coef_
+
     return {
         "custom_coefficient": linreg.coefficients,
         "custom_intercept": linreg.intercept,
-        "sklearn_coefficient": sklearn_model.coef_[0],
+        "sklearn_coefficient": sklearn_coef,
         "sklearn_intercept": sklearn_model.intercept_,
     }
 
+
 def anscombe_quartet():
-    # Load Anscombe's quartet
-    # These four datasets are the same as in slide 19 of chapter 02-03: Linear and logistic regression
     anscombe = sns.load_dataset("anscombe")
-    # Obtener los identificadores de cada uno de los 4 conjuntos de datos
     datasets = np.sort(anscombe["dataset"].unique())
     
     models = {}
     results = {"R2": [], "RMSE": [], "MAE": []}
     
     for dataset in datasets:
-        # Filtrar el dataset actual
         data = anscombe[anscombe["dataset"] == dataset]
-        X = data["x"].values  # Predictor (1D)
-        y = data["y"].values  # Respuesta
+        X = data["x"].values
+        y = data["y"].values
 
-        # Crear y ajustar el modelo de regresión simple
         model = LinearRegressor()
         model.fit_simple(X, y)
-        # Realizar predicciones
         y_pred = model.predict(X)
 
-        # Guardar el modelo para su uso posterior
         models[dataset] = model
-
-        # Imprimir los coeficientes para cada dataset
-        print(f"Dataset {dataset}: Coefficient: {model.coefficients}, Intercept: {model.intercept}")
-
         evaluation_metrics = evaluate_regression(y, y_pred)
 
-
-        # Print evaluation metrics for each dataset
-        print(
-            f"R2: {evaluation_metrics['R2']}, RMSE: {evaluation_metrics['RMSE']}, MAE: {evaluation_metrics['MAE']}"
-        )
         results["R2"].append(evaluation_metrics["R2"])
         results["RMSE"].append(evaluation_metrics["RMSE"])
         results["MAE"].append(evaluation_metrics["MAE"])
-    return results
 
+    # Ahora devolvemos los cuatro objetos que el test espera
+    return anscombe, datasets, models, results
 
 # Go to the notebook to visualize the results
